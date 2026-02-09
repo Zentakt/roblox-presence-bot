@@ -187,21 +187,23 @@ class FandomWikiService {
 
             // Extract individual code blocks with improved patterns
             const codePatterns = [
-                // Format 1: Table rows with code in first column (handles mixed case)
+                // Format 1: Code tags inside table cells (PRIMARY - most common on modern wikis)
+                /<td[^>]*>[\s\S]*?<code[^>]*>([A-Za-z0-9\-_]{3,50})<\/code>[\s\S]*?<\/td>/gi,
+                // Format 2: Table rows with code in first column (handles mixed case)
                 /<td[^>]*>[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*<\/td>[\s\S]{0,500}?<td[^>]*>([\s\S]{0,200}?)<\/td>/gi,
-                // Format 2: List items with codes
+                // Format 3: List items with codes
                 /<li[^>]*>[\s\n]*<code[^>]*>([A-Za-z0-9\-_]{3,50})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<\/li>/gi,
-                // Format 3: Direct code+description in <p> tags
+                // Format 4: Direct code+description in <p> tags
                 /<p[^>]*>[\s\n]*<code[^>]*>([A-Za-z0-9\-_]{3,50})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<\/p>/gi,
-                // Format 4: Code in strong/bold tags
+                // Format 5: Code in strong/bold tags
                 /<(?:strong|b)[^>]*>([A-Za-z0-9\-_]{3,50})<\/(?:strong|b)>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<br/gi,
-                // Format 5: Code with pipe separator (wiki table format)
+                // Format 6: Code with pipe separator (wiki table format)
                 /\|[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*\|[\s\n]*([\s\S]{0,100}?)\|/gi,
-                // Format 6: Plain code tags followed by description
+                // Format 7: Plain code tags followed by description
                 /<code[^>]*>([A-Za-z0-9\-_]{3,50})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)(?=<code|<\/li|<\/td|<\/p|<br|$)/gi,
-                // Format 7: Code in divs or spans
+                // Format 8: Code in divs or spans
                 /<(?:div|span)[^>]*>[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*<\/(?:div|span)>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<br/gi,
-                // Format 8: Simple text nodes in table cells (catches any alphanumeric code)
+                // Format 9: Simple text nodes in table cells (catches any alphanumeric code)
                 /<td[^>]*>\s*(?:<[^>]+>)*\s*([A-Za-z0-9_\-]{3,50})\s*(?:<\/[^>]+>)?\s*<\/td>/gi
             ];
 
