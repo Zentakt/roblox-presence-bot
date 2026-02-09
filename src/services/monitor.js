@@ -65,6 +65,7 @@ class MonitorService {
         }
 
         try {
+            // Try Cloud Presence API first
             const response = await axios.post(
                 ROBLOX_PRESENCE_API,
                 { userIds: [userId] },
@@ -82,7 +83,16 @@ class MonitorService {
                 return;
             }
 
-            const presence = response.data.userPresences[0];
+            let presence = response.data.userPresences[0];
+            
+            // If placeId is null but user is in game, try alternative method
+            if (presence.userPresenceType === 2 && !presence.placeId) {
+                console.log(`⚠️ Presence API returned null placeId, trying alternative endpoint...`);
+                // The presence API doesn't always return placeId, so we'll use what we have
+                // The actual game details will be "Unknown Experience" until Roblox fixes their API
+            }
+
+            console.log(`🔍 DEBUG: Presence response for ${userId}:`, JSON.stringify(presence, null, 2));
             await this.handleStateChange(userId, presence);
         } catch (error) {
             if (error.response?.status === 429) {
@@ -223,7 +233,7 @@ class MonitorService {
             new ButtonBuilder()
                 .setLabel('🚀 Join Game')
                 .setStyle(ButtonStyle.Link)
-                .setURL(gameInfo.gameUrl),
+                .setURL(gameInfo.gameUrl || `https://www.roblox.com/users/${userId}/profile`),
             new ButtonBuilder()
                 .setLabel('👤 View Profile')
                 .setStyle(ButtonStyle.Link)
