@@ -102,7 +102,6 @@ class FandomWikiService {
                     list: 'search',
                     srsearch: query,
                     srlimit: 5,
-                    srwhat: 'title', // Search titles primarily
                     format: 'json'
                 },
                 timeout: this.timeout,
