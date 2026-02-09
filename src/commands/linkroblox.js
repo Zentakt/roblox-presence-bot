@@ -11,7 +11,7 @@ module.exports = {
 
         const redirectUri = encodeURIComponent(process.env.ROBLOX_REDIRECT_URI);
         const clientId = process.env.ROBLOX_CLIENT_ID;
-        const scopes = encodeURIComponent('openid profile email');
+        const scopes = encodeURIComponent('openid profile');
 
         const authUrl = `https://apis.roblox.com/oauth/v1/authorize?` +
             `client_id=${clientId}&` +
