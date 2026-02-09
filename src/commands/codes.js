@@ -57,8 +57,8 @@ module.exports = {
             }
 
             // Step 2: Fetch page content
-            console.log(`\n📖 Fetching page: "${gameMatch.title}"\n`);
-            const htmlContent = await wiki.fetchPageContent(gameMatch.title);
+            console.log(`\n📖 Fetching page: "${gameMatch.title}" from ${gameMatch.domain}\n`);
+            const htmlContent = await wiki.fetchPageContent(gameMatch.title, gameMatch.domain);
 
             // Step 3: Extract codes
             console.log(`\n🔍 Extracting codes from page...\n`);

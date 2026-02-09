@@ -6,34 +6,82 @@ const axios = require('axios');
  */
 class FandomWikiService {
     constructor() {
-        this.baseUrl = 'https://roblox.fandom.com/api.php';
         this.timeout = 10000; // 10 second timeout
+        // Map of known game names to their Fandom wiki domains
+        this.wikiDomains = {
+            'blox fruits': 'blox-fruits.fandom.com',
+            'jailbreak': 'jailbreak.fandom.com',
+            'arsenal': 'roblox-arsenal.fandom.com',
+            'adopt me': 'adoptme.fandom.com',
+            'tower defense simulator': 'tower-defense-simulator.fandom.com',
+            'pet simulator': 'pet-simulator.fandom.com',
+            'bee swarm simulator': 'bee-swarm-simulator.fandom.com',
+            'anime fighters simulator': 'anime-fighters-simulator.fandom.com',
+            'islands': 'islands.fandom.com',
+            'anime adventures': 'anime-adventures.fandom.com',
+            'all star tower defense': 'all-star-tower-defense.fandom.com'
+        };
+    }
+
+    /**
+     * Get the appropriate Fandom wiki domain for a game
+     * @param {string} gameName - The game name
+     * @returns {string} - The Fandom wiki domain
+     */
+    _getWikiDomain(gameName) {
+        const normalized = gameName.toLowerCase().trim();
+        
+        // Check for exact or partial matches in our known domains
+        for (const [key, domain] of Object.entries(this.wikiDomains)) {
+            if (normalized.includes(key) || key.includes(normalized)) {
+                console.log(`🎯 [Wiki] Matched "${gameName}" to ${domain}`);
+                return domain;
+            }
+        }
+        
+        // Try to construct a domain from the game name
+        const slug = normalized.replace(/[^a-z0-9]+/g, '-');
+        const constructedDomain = `${slug}.fandom.com`;
+        console.log(`🔧 [Wiki] Constructed domain for "${gameName}": ${constructedDomain}`);
+        return constructedDomain;
+    }
+
+    /**
+     * Get the base API URL for a wiki domain
+     * @param {string} domain - The Fandom wiki domain
+     * @returns {string} - The API URL
+     */
+    _getApiUrl(domain) {
+        return `https://${domain}/api.php`;
     }
 
     /**
      * Search for a game page with fuzzy matching and fallback
      * @param {string} gameName - The game name to search for
-     * @returns {Promise<{title: string, pageid: number} | null>} - Best matching page or null
+     * @returns {Promise<{title: string, pageid: number, domain: string} | null>} - Best matching page or null
      */
     async searchGame(gameName) {
         try {
-            // First attempt: Full-text search with fuzzy matching
-            console.log(`🔍 [Wiki] Searching for "${gameName}" via full-text search...`);
-            const searchResult = await this._performSearch(gameName);
-            if (searchResult) {
-                console.log(`✅ [Wiki] Found via full-text search: "${searchResult.title}"`);
-                return searchResult;
+            // Determine the wiki domain for this game
+            const domain = this._getWikiDomain(gameName);
+            
+            // First attempt: Search for "Codes" page directly
+            console.log(`🔍 [Wiki] Searching for Codes page on ${domain}...`);
+            const codesResult = await this._performSearch('Codes', domain);
+            if (codesResult) {
+                console.log(`✅ [Wiki] Found Codes page: "${codesResult.title}"`);
+                return { ...codesResult, domain };
             }
 
-            // Fallback: Prefix search with fuzzy profile (supports typo correction)
-            console.log(`🔄 [Wiki] Falling back to prefix search with typo correction...`);
-            const prefixResult = await this._performPrefixSearch(gameName);
-            if (prefixResult) {
-                console.log(`✅ [Wiki] Found via prefix search: "${prefixResult.title}"`);
-                return prefixResult;
+            // Fallback: Search for "Working Codes" or similar
+            console.log(`🔄 [Wiki] Searching for alternative code pages...`);
+            const altResult = await this._performSearch('Working Codes', domain);
+            if (altResult) {
+                console.log(`✅ [Wiki] Found alternative: "${altResult.title}"`);
+                return { ...altResult, domain };
             }
 
-            console.warn(`❌ [Wiki] No matching game found for "${gameName}"`);
+            console.warn(`❌ [Wiki] No Codes page found on ${domain}`);
             return null;
         } catch (error) {
             console.error('Error searching game:', error.message);
@@ -45,9 +93,10 @@ class FandomWikiService {
      * Perform full-text search on Fandom
      * @private
      */
-    async _performSearch(query) {
+    async _performSearch(query, domain) {
         try {
-            const response = await axios.get(this.baseUrl, {
+            const apiUrl = this._getApiUrl(domain);
+            const response = await axios.get(apiUrl, {
                 params: {
                     action: 'query',
                     list: 'search',
@@ -78,51 +127,16 @@ class FandomWikiService {
     }
 
     /**
-     * Perform prefix search with fuzzy matching on Fandom
-     * Handles typos and provides better suggestions
-     * @private
-     */
-    async _performPrefixSearch(query) {
-        try {
-            const response = await axios.get(this.baseUrl, {
-                params: {
-                    action: 'query',
-                    list: 'prefixsearch',
-                    pssearch: query,
-                    pslimit: 5,
-                    psprofile: 'fuzzy', // Enable typo correction (up to 2 typos)
-                    format: 'json'
-                },
-                timeout: this.timeout,
-                headers: {
-                    'User-Agent': 'RobloxPresenceBot/1.0 (Discord Bot)'
-                }
-            });
-
-            const results = response.data?.query?.prefixsearch || [];
-            if (results.length > 0) {
-                // Return the first (best matching) result
-                return {
-                    title: results[0].title,
-                    pageid: results[0].pageid
-                };
-            }
-            return null;
-        } catch (error) {
-            console.warn(`Prefix search failed: ${error.message}`);
-            return null;
-        }
-    }
-
-    /**
      * Fetch the full page content from Fandom
      * @param {string} pageTitle - The page title to fetch
+     * @param {string} domain - The Fandom wiki domain
      * @returns {Promise<string>} - HTML content of the page
      */
-    async fetchPageContent(pageTitle) {
+    async fetchPageContent(pageTitle, domain) {
         try {
-            console.log(`📖 [Wiki] Fetching page content for "${pageTitle}"...`);
-            const response = await axios.get(this.baseUrl, {
+            console.log(`📖 [Wiki] Fetching page "${pageTitle}" from ${domain}...`);
+            const apiUrl = this._getApiUrl(domain);
+            const response = await axios.get(apiUrl, {
                 params: {
                     action: 'parse',
                     page: pageTitle,
