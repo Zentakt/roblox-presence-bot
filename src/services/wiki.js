@@ -56,7 +56,10 @@ class FandomWikiService {
                     srwhat: 'title', // Search titles primarily
                     format: 'json'
                 },
-                timeout: this.timeout
+                timeout: this.timeout,
+                headers: {
+                    'User-Agent': 'RobloxPresenceBot/1.0 (Discord Bot)'
+                }
             });
 
             const results = response.data?.query?.search || [];
@@ -90,7 +93,10 @@ class FandomWikiService {
                     psprofile: 'fuzzy', // Enable typo correction (up to 2 typos)
                     format: 'json'
                 },
-                timeout: this.timeout
+                timeout: this.timeout,
+                headers: {
+                    'User-Agent': 'RobloxPresenceBot/1.0 (Discord Bot)'
+                }
             });
 
             const results = response.data?.query?.prefixsearch || [];
@@ -124,7 +130,10 @@ class FandomWikiService {
                     format: 'json',
                     redirects: 1 // Follow redirects
                 },
-                timeout: this.timeout
+                timeout: this.timeout,
+                headers: {
+                    'User-Agent': 'RobloxPresenceBot/1.0 (Discord Bot)'
+                }
             });
 
             const html = response.data?.parse?.text?.['*'];
@@ -178,20 +187,22 @@ class FandomWikiService {
 
             // Extract individual code blocks with improved patterns
             const codePatterns = [
-                // Format 1: Table rows with code in first column
-                /<td[^>]*>[\s\n]*([A-Z0-9\-_]{3,20})[\s\n]*<\/td>[\s\S]{0,500}?<td[^>]*>([\s\S]{0,200}?)<\/td>/gi,
+                // Format 1: Table rows with code in first column (handles mixed case)
+                /<td[^>]*>[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*<\/td>[\s\S]{0,500}?<td[^>]*>([\s\S]{0,200}?)<\/td>/gi,
                 // Format 2: List items with codes
-                /<li[^>]*>[\s\n]*<code[^>]*>([A-Z0-9\-_]{3,20})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<\/li>/gi,
+                /<li[^>]*>[\s\n]*<code[^>]*>([A-Za-z0-9\-_]{3,50})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<\/li>/gi,
                 // Format 3: Direct code+description in <p> tags
-                /<p[^>]*>[\s\n]*<code[^>]*>([A-Z0-9\-_]{3,20})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<\/p>/gi,
+                /<p[^>]*>[\s\n]*<code[^>]*>([A-Za-z0-9\-_]{3,50})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<\/p>/gi,
                 // Format 4: Code in strong/bold tags
-                /<(?:strong|b)[^>]*>([A-Z0-9\-_]{3,20})<\/(?:strong|b)>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<br/gi,
+                /<(?:strong|b)[^>]*>([A-Za-z0-9\-_]{3,50})<\/(?:strong|b)>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<br/gi,
                 // Format 5: Code with pipe separator (wiki table format)
-                /\|[\s\n]*([A-Z0-9\-_]{3,20})[\s\n]*\|[\s\n]*([\s\S]{0,100}?)\|/gi,
+                /\|[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*\|[\s\n]*([\s\S]{0,100}?)\|/gi,
                 // Format 6: Plain code tags followed by description
-                /<code[^>]*>([A-Z0-9\-_]{3,20})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)(?=<code|<\/li|<\/td|<\/p|<br|$)/gi,
+                /<code[^>]*>([A-Za-z0-9\-_]{3,50})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)(?=<code|<\/li|<\/td|<\/p|<br|$)/gi,
                 // Format 7: Code in divs or spans
-                /<(?:div|span)[^>]*>[\s\n]*([A-Z0-9\-_]{3,20})[\s\n]*<\/(?:div|span)>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<br/gi
+                /<(?:div|span)[^>]*>[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*<\/(?:div|span)>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<br/gi,
+                // Format 8: Simple text nodes in table cells (catches any alphanumeric code)
+                /<td[^>]*>\s*(?:<[^>]+>)*\s*([A-Za-z0-9_\-]{3,50})\s*(?:<\/[^>]+>)?\s*<\/td>/gi
             ];
 
             for (const pattern of codePatterns) {
@@ -216,7 +227,7 @@ class FandomWikiService {
 
             // Fallback: If almost no codes found, try broader extraction
             if (codes.length === 0) {
-                const plainCodePattern = /\b([A-Z0-9]{4,20}(?:[_\-][A-Z0-9]{2,})?)\b/g;
+                const plainCodePattern = /\b([A-Za-z0-9]{4,50}(?:[_\-][A-Za-z0-9]{2,})?)\b/g;
                 const matches = codesSection.match(plainCodePattern);
                 if (matches) {
                     const uniqueCodes = [...new Set(matches)];
