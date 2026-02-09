@@ -1,0 +1,32 @@
+{
+  "name": "roblox-presence-bot",
+  "version": "1.0.0",
+  "description": "Production-ready Discord bot for monitoring Roblox user presence with OAuth 2.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node src/deploy.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "discord",
+    "discord.js",
+    "roblox",
+    "oauth2",
+    "presence",
+    "monitoring"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "axios": "^1.6.2",
+    "dotenv": "^16.3.1",
+    "sqlite3": "^5.1.6",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

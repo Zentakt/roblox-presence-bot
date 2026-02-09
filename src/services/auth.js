@@ -1,0 +1,173 @@
+const axios = require('axios');
+const db = require('./db');
+const { encrypt, decrypt } = require('../utils/crypto');
+const crypto = require('crypto');
+
+const ROBLOX_TOKEN_URL = 'https://apis.roblox.com/oauth/v1/token';
+const ROBLOX_USER_INFO = 'https://apis.roblox.com/oauth/v1/userinfo';
+
+class RobloxAuth {
+    generateStateToken(discordId) {
+        const stateToken = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+        db.run(`
+            INSERT INTO oauth_state (state_token, discord_id, expires_at)
+            VALUES (?, ?, ?)
+        `, [stateToken, discordId, expiresAt.toISOString()]).catch(err => {
+            console.error('Error saving state token:', err);
+        });
+
+        return stateToken;
+    }
+
+    async verifyStateToken(stateToken) {
+        try {
+            const result = await db.get(`
+                SELECT discord_id FROM oauth_state
+                WHERE state_token = ? AND expires_at > datetime('now')
+            `, [stateToken]);
+
+            if (result) {
+                await db.run('DELETE FROM oauth_state WHERE state_token = ?', [stateToken]);
+                return result.discord_id;
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error verifying state token:', error);
+            return null;
+        }
+    }
+
+    async exchangeCode(code, discordId) {
+        const params = new URLSearchParams({
+            client_id: process.env.ROBLOX_CLIENT_ID,
+            client_secret: process.env.ROBLOX_CLIENT_SECRET,
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: process.env.ROBLOX_REDIRECT_URI
+        });
+
+        try {
+            const { data: tokenData } = await axios.post(ROBLOX_TOKEN_URL, params, {
+                timeout: 10000,
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            });
+
+            const { data: userInfo } = await axios.get(ROBLOX_USER_INFO, {
+                headers: { Authorization: `Bearer ${tokenData.access_token}` },
+                timeout: 10000
+            });
+
+            await this.saveTokens(discordId, userInfo.sub, userInfo.preferred_username, tokenData);
+
+            return {
+                robloxUserId: userInfo.sub,
+                username: userInfo.preferred_username,
+                email: userInfo.email || null
+            };
+        } catch (error) {
+            console.error('❌ OAuth Exchange Failed:', error.response?.data || error.message);
+            throw new Error(
+                error.response?.data?.error_description ||
+                'Failed to exchange authorization code. Please try again.'
+            );
+        }
+    }
+
+    async getValidToken(robloxUserId) {
+        try {
+            const user = await db.get('SELECT * FROM users WHERE roblox_user_id = ?', [robloxUserId]);
+
+            if (!user) {
+                console.warn(`⚠️ No user record found for ${robloxUserId}`);
+                return null;
+            }
+
+            if (Date.now() < user.token_expires_at - 60000) {
+                try {
+                    const decrypted = decrypt(JSON.parse(user.access_token));
+                    return decrypted;
+                } catch (error) {
+                    console.error('❌ Failed to decrypt access token:', error.message);
+                    return null;
+                }
+            }
+
+            return await this.refreshToken(user.discord_id, robloxUserId, user.refresh_token);
+        } catch (error) {
+            console.error('Error getting valid token:', error);
+            return null;
+        }
+    }
+
+    async refreshToken(discordId, robloxUserId, encryptedRefreshToken) {
+        try {
+            const decryptedRefresh = decrypt(JSON.parse(encryptedRefreshToken));
+
+            const params = new URLSearchParams({
+                client_id: process.env.ROBLOX_CLIENT_ID,
+                client_secret: process.env.ROBLOX_CLIENT_SECRET,
+                grant_type: 'refresh_token',
+                refresh_token: decryptedRefresh
+            });
+
+            const { data: tokenData } = await axios.post(ROBLOX_TOKEN_URL, params, {
+                timeout: 10000,
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            });
+
+            const encAccess = JSON.stringify(encrypt(tokenData.access_token));
+            const encRefresh = JSON.stringify(encrypt(tokenData.refresh_token));
+            const expiresAt = Date.now() + tokenData.expires_in * 1000;
+
+            await db.run(`
+                UPDATE users
+                SET access_token = ?, refresh_token = ?, token_expires_at = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE discord_id = ?
+            `, [encAccess, encRefresh, expiresAt, discordId]);
+
+            console.log(`✅ Token refreshed for ${robloxUserId}`);
+            return tokenData.access_token;
+        } catch (error) {
+            if (error.response?.status === 401) {
+                console.warn(`⚠️ Refresh token revoked for ${robloxUserId}. User needs to re-authorize.`);
+                return null;
+            }
+            console.error(`❌ Token refresh failed for ${robloxUserId}:`, error.message);
+            return null;
+        }
+    }
+
+    async saveTokens(discordId, robloxId, username, tokenData) {
+        try {
+            const encAccess = JSON.stringify(encrypt(tokenData.access_token));
+            const encRefresh = JSON.stringify(encrypt(tokenData.refresh_token));
+            const expiresAt = Date.now() + tokenData.expires_in * 1000;
+
+            await db.run(`
+                INSERT OR REPLACE INTO users
+                (discord_id, roblox_user_id, roblox_username, access_token, refresh_token, token_expires_at, last_state, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'Offline', CURRENT_TIMESTAMP)
+            `, [discordId, robloxId, username, encAccess, encRefresh, expiresAt]);
+
+            console.log(`✅ Tokens saved for user ${username}`);
+        } catch (error) {
+            console.error('Error saving tokens:', error);
+            throw error;
+        }
+    }
+
+    async revokeTokens(discordId) {
+        try {
+            await db.run('DELETE FROM users WHERE discord_id = ?', [discordId]);
+            console.log(`✅ Tokens revoked for user ${discordId}`);
+        } catch (error) {
+            console.error('Error revoking tokens:', error);
+            throw error;
+        }
+    }
+}
+
+module.exports = new RobloxAuth();
