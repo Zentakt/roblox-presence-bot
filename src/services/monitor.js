@@ -3,7 +3,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const db = require('./db');
 const auth = require('./auth');
 
-const ROBLOX_PRESENCE_API = 'https://apis.roblox.com/cloud/v2/users/presence';
+const ROBLOX_PRESENCE_API = 'https://presence.roblox.com/v1/presence/users';
 const ROBLOX_GAMES_API = 'https://games.roblox.com/v1/games';
 const ROBLOX_UNIVERSES_API = 'https://apis.roblox.com/universes/v1/places';
 const ROBLOX_THUMBNAILS_API = 'https://thumbnails.roblox.com/v1';
@@ -102,7 +102,9 @@ class MonitorService {
         const presenceType = presence.userPresenceType;
         const currentState = presenceType === 2 ? 'InGame' : presenceType === 1 ? 'Online' : 'Offline';
         const previousState = userRecord.last_state || 'Offline';
-        const placeId = presence.placeId;
+        
+        // Handle both placeId and rootPlaceId from presence response
+        const placeId = presence.placeId || presence.rootPlaceId || null;
         const previousPlaceId = userRecord.last_place_id;
 
         await db.run(`
@@ -118,6 +120,15 @@ class MonitorService {
     }
 
     async getGameInfo(placeId) {
+        if (!placeId) {
+            return {
+                gameId: null,
+                gameName: 'Unknown Experience',
+                gameIcon: null,
+                gameUrl: null
+            };
+        }
+
         try {
             const universeRes = await axios.get(
                 `${ROBLOX_UNIVERSES_API}/${placeId}/universe`,
@@ -144,7 +155,7 @@ class MonitorService {
                 gameId: universeId,
                 gameName: gameData.name || 'Unknown Experience',
                 gameIcon: gameIcon,
-                gameUrl: `https://www.roblox.com/games/${placeId}`
+                gameUrl: `https://www.roblox.com/games/${universeId}`
             };
         } catch (error) {
             console.warn(`⚠️ Failed to fetch game info for place ${placeId}:`, error.message);
@@ -152,7 +163,7 @@ class MonitorService {
                 gameId: null,
                 gameName: 'Unknown Experience',
                 gameIcon: null,
-                gameUrl: `https://www.roblox.com/games/${placeId}`
+                gameUrl: placeId ? `https://www.roblox.com/games/${placeId}` : null
             };
         }
     }
