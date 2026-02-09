@@ -171,23 +171,43 @@ class FandomWikiService {
         try {
             let codesSection = null;
 
-            // Try multiple patterns to find the codes section
-            const patterns = [
-                // Standard heading patterns (h2, h3)
-                /<h[2-4][^>]*>[\s\n]*(?:Active\s+)?Codes?[\s\n]*<\/h[2-4]>([\s\S]*?)(?=<h[2-4]|<\/section|$)/i,
-                // Bold/strong section headings
-                /<(?:strong|b)[^>]*>[\s\n]*(?:Active\s+)?Codes?[\s\n]*<\/(?:strong|b)>([\s\S]{0,5000}?)(?=<(?:strong|b|h[2-4])|<\/section|$)/i,
-                // Titles with special formatting
-                /<span[^>]*class="[^"]*heading[^"]*"[^>]*>[\s\n]*(?:Active\s+)?Codes?[\s\n]*<\/span>([\s\S]{0,5000}?)(?=<span|<h|$)/i,
-                // Fallback: Look for any section with "code" nearby
-                /[Cc]odes?[\s\n]*<[^>]*>[\s\S]{0,200}?<\/[^>]*>([\s\S]{0,5000}?)(?=<h[2-4]|$)/i
+            // First look for specific robust section markers (e.g., "Working Codes")
+            const robustPatterns = [
+                // Wiki tabber content (Common in Fandom wikis)
+                /<div[^>]*class="[^"]*wds-tab__content[^"]*wds-is-current[^"]*"[^>]*>([\s\S]+?)<\/div>/i,
+                // "Working Codes" header or span
+                /<span[^>]*id="Working_Codes"[^>]*>([\s\S]+?)(?=<h2|<span[^>]*id="Expired_Codes"|$)/i,
+                /<h[2-4][^>]*>[\s\n]*(?:Active|Working)\s+Codes?[\s\n]*<\/h[2-4]>([\s\S]{0,10000}?)(?=<h[2-4]|$)/i
             ];
 
-            for (const pattern of patterns) {
+            for (const pattern of robustPatterns) {
                 const match = html.match(pattern);
                 if (match && match[1]) {
                     codesSection = match[1];
+                    console.log('✅ [Wiki] Found robust code section');
                     break;
+                }
+            }
+            
+            // If no robust section found, proceed with standard patterns
+            if (!codesSection) {
+                const patterns = [
+                    // Standard heading patterns (h2, h3)
+                    /<h[2-4][^>]*>[\s\n]*(?:Active\s+)?Codes?[\s\n]*<\/h[2-4]>([\s\S]*?)(?=<h[2-4]|<\/section|$)/i,
+                    // Bold/strong section headings
+                    /<(?:strong|b)[^>]*>[\s\n]*(?:Active\s+)?Codes?[\s\n]*<\/(?:strong|b)>([\s\S]{0,5000}?)(?=<(?:strong|b|h[2-4])|<\/section|$)/i,
+                    // Titles with special formatting
+                    /<span[^>]*class="[^"]*heading[^"]*"[^>]*>[\s\n]*(?:Active\s+)?Codes?[\s\n]*<\/span>([\s\S]{0,5000}?)(?=<span|<h|$)/i,
+                    // Fallback: Look for any section with "code" nearby
+                    /[Cc]odes?[\s\n]*<[^>]*>[\s\S]{0,200}?<\/[^>]*>([\s\S]{0,5000}?)(?=<h[2-4]|$)/i
+                ];
+
+                for (const pattern of patterns) {
+                    const match = html.match(pattern);
+                    if (match && match[1]) {
+                        codesSection = match[1];
+                        break;
+                    }
                 }
             }
 
