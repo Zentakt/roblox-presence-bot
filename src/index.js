@@ -1,4 +1,4 @@
-// Force IPv4 DNS resolution (fixes Discord gateway on cloud platforms)
+// Force IPv4 DNS resolution (fixes Discord gateway on some cloud platforms)
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
@@ -192,12 +192,9 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.DirectMessages,
-        GatewayIntentBits.GuildPresences // Required for presence tracking
+        GatewayIntentBits.GuildPresences
     ]
 });
-
-// Debug Logging
-client.on('debug', info => console.log(`[DEBUG] ${info}`));
 
 client.commands = new Collection();
 let monitorService = null;
@@ -291,51 +288,5 @@ process.on('SIGINT', async () => {
     });
 });
 
-// Test Discord API connectivity first
-const https = require('https');
-
-console.log('Testing Discord API connectivity...');
-const testReq = https.get('https://discord.com/api/v10/gateway', (res) => {
-    let data = '';
-    res.on('data', chunk => data += chunk);
-    res.on('end', () => {
-        console.log(`✅ Discord API reachable! Status: ${res.statusCode}, Response: ${data}`);
-        attemptLogin();
-    });
-});
-testReq.on('error', (err) => {
-    console.error('❌ Cannot reach Discord API:', err.message);
-    console.error('This is a network connectivity issue on Render.');
-    // Try login anyway
-    attemptLogin();
-});
-testReq.setTimeout(10000, () => {
-    console.error('❌ Discord API test timed out after 10 seconds!');
-    testReq.destroy();
-    attemptLogin();
-});
-
-function attemptLogin() {
-    console.log('Attempting to log into Discord...');
-    console.log('Token starts with:', process.env.DISCORD_TOKEN?.substring(0, 10) + '...');
-
-    // Listen for WebSocket errors
-    client.on('warn', info => console.warn('[WARN]', info));
-    client.ws.on('close', (event) => console.error('[WS CLOSE]', event));
-
-    const loginTimeout = setTimeout(() => {
-        console.error('❌ Discord login timed out after 30 seconds!');
-        console.error('Token length:', process.env.DISCORD_TOKEN?.length);
-    }, 30000);
-
-    client.login(process.env.DISCORD_TOKEN)
-        .then(() => {
-            clearTimeout(loginTimeout);
-            console.log('✅ client.login() resolved successfully');
-        })
-        .catch(err => {
-            clearTimeout(loginTimeout);
-            console.error('❌ client.login() FAILED:', err.message);
-            console.error('Full error:', err);
-        });
-}
+// Login to Discord
+client.login(process.env.DISCORD_TOKEN);
