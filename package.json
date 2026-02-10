@@ -4,7 +4,7 @@
   "description": "Production-ready Discord bot for monitoring Roblox user presence with OAuth 2.0",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node --dns-result-order=ipv4first src/index.js",
     "deploy": "node src/deploy.js",
     "dev": "node --watch src/index.js"
   },
@@ -27,6 +27,6 @@
   },
   "devDependencies": {},
   "engines": {
-    "node": ">=18.0.0"
+    "node": "22.x"
   }
 }

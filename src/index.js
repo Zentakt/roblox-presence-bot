@@ -1,3 +1,7 @@
+// Force IPv4 DNS resolution (fixes Discord gateway on cloud platforms)
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const express = require('express');
