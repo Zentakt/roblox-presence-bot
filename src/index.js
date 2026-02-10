@@ -185,8 +185,15 @@ const server = app.listen(PORT, () => {
 
 // Setup Discord Bot
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.GuildPresences // Required for presence tracking
+    ]
 });
+
+// Debug Logging
+client.on('debug', info => console.log(`[DEBUG] ${info}`));
 
 client.commands = new Collection();
 let monitorService = null;
@@ -281,4 +288,5 @@ process.on('SIGINT', async () => {
 });
 
 // Login to Discord
-client.login(process.env.DISCORD_TOKEN);
+console.log('Attempting to log into Discord...');
+client.login(process.env.DISCORD_TOKEN).catch(console.error);
