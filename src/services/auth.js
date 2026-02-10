@@ -1,5 +1,5 @@
 const axios = require('axios');
-const db = require('./db');
+const { User, OAuthState } = require('./db');
 const { encrypt, decrypt } = require('../utils/crypto');
 const crypto = require('crypto');
 
@@ -11,10 +11,11 @@ class RobloxAuth {
         const stateToken = crypto.randomBytes(32).toString('hex');
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-        db.run(`
-            INSERT INTO oauth_state (state_token, discord_id, expires_at)
-            VALUES (?, ?, ?)
-        `, [stateToken, discordId, expiresAt.toISOString()]).catch(err => {
+        OAuthState.create({
+            state_token: stateToken,
+            discord_id: discordId,
+            expires_at: expiresAt
+        }).catch(err => {
             console.error('Error saving state token:', err);
         });
 
@@ -23,13 +24,13 @@ class RobloxAuth {
 
     async verifyStateToken(stateToken) {
         try {
-            const result = await db.get(`
-                SELECT discord_id FROM oauth_state
-                WHERE state_token = ? AND expires_at > datetime('now')
-            `, [stateToken]);
+            const result = await OAuthState.findOne({
+                state_token: stateToken,
+                expires_at: { $gt: new Date() }
+            });
 
             if (result) {
-                await db.run('DELETE FROM oauth_state WHERE state_token = ?', [stateToken]);
+                await OAuthState.deleteOne({ state_token: stateToken });
                 return result.discord_id;
             }
 
@@ -78,14 +79,14 @@ class RobloxAuth {
 
     async getValidToken(robloxUserId) {
         try {
-            const user = await db.get('SELECT * FROM users WHERE roblox_user_id = ?', [robloxUserId]);
+            const user = await User.findOne({ roblox_user_id: robloxUserId });
 
             if (!user) {
                 console.warn(`⚠️ No user record found for ${robloxUserId}`);
                 return null;
             }
 
-            if (Date.now() < user.token_expires_at - 60000) {
+            if (Date.now() < new Date(user.token_expires_at).getTime() - 60000) {
                 try {
                     const decrypted = decrypt(JSON.parse(user.access_token));
                     return decrypted;
@@ -120,13 +121,17 @@ class RobloxAuth {
 
             const encAccess = JSON.stringify(encrypt(tokenData.access_token));
             const encRefresh = JSON.stringify(encrypt(tokenData.refresh_token));
-            const expiresAt = Date.now() + tokenData.expires_in * 1000;
+            const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
-            await db.run(`
-                UPDATE users
-                SET access_token = ?, refresh_token = ?, token_expires_at = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE discord_id = ?
-            `, [encAccess, encRefresh, expiresAt, discordId]);
+            await User.updateOne(
+                { discord_id: discordId },
+                {
+                    access_token: encAccess,
+                    refresh_token: encRefresh,
+                    token_expires_at: expiresAt,
+                    updated_at: new Date()
+                }
+            );
 
             console.log(`✅ Token refreshed for ${robloxUserId}`);
             return tokenData.access_token;
@@ -144,13 +149,22 @@ class RobloxAuth {
         try {
             const encAccess = JSON.stringify(encrypt(tokenData.access_token));
             const encRefresh = JSON.stringify(encrypt(tokenData.refresh_token));
-            const expiresAt = Date.now() + tokenData.expires_in * 1000;
+            const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
-            await db.run(`
-                INSERT OR REPLACE INTO users
-                (discord_id, roblox_user_id, roblox_username, access_token, refresh_token, token_expires_at, last_state, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, 'Offline', CURRENT_TIMESTAMP)
-            `, [discordId, robloxId, username, encAccess, encRefresh, expiresAt]);
+            await User.findOneAndUpdate(
+                { discord_id: discordId },
+                {
+                    roblox_user_id: robloxId,
+                    roblox_username: username,
+                    access_token: encAccess,
+                    refresh_token: encRefresh,
+                    token_expires_at: expiresAt,
+                    updated_at: new Date(),
+                    // Ensure created_at is only set on insert, not update (handled by default if not specified in update)
+                    $setOnInsert: { created_at: new Date(), last_state: 'Offline' }
+                },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
 
             console.log(`✅ Tokens saved for user ${username}`);
         } catch (error) {
@@ -161,7 +175,7 @@ class RobloxAuth {
 
     async revokeTokens(discordId) {
         try {
-            await db.run('DELETE FROM users WHERE discord_id = ?', [discordId]);
+            await User.deleteOne({ discord_id: discordId });
             console.log(`✅ Tokens revoked for user ${discordId}`);
         } catch (error) {
             console.error('Error revoking tokens:', error);

@@ -19,18 +19,18 @@ class FandomWikiService {
             'anime fighters simulator': 'anime-fighters-simulator.fandom.com',
             'islands': 'islands.fandom.com',
             'anime adventures': 'anime-adventures.fandom.com',
-            'all star tower defense': 'all-star-tower-defense.fandom.com'
+            'all star tower defense': 'all-star-tower-defense.fandom.com',
+            'dress to impress': 'dti-dress-to-impress.fandom.com'
         };
     }
 
     /**
-     * Get the appropriate Fandom wiki domain for a game
+     * Enhanced: Try multiple domain patterns for unknown games
      * @param {string} gameName - The game name
-     * @returns {string} - The Fandom wiki domain
+     * @returns {Promise<string>} - The Fandom wiki domain
      */
-    _getWikiDomain(gameName) {
+    async _getWikiDomain(gameName) {
         const normalized = gameName.toLowerCase().trim();
-        
         // Check for exact or partial matches in our known domains
         for (const [key, domain] of Object.entries(this.wikiDomains)) {
             if (normalized.includes(key) || key.includes(normalized)) {
@@ -38,12 +38,47 @@ class FandomWikiService {
                 return domain;
             }
         }
-        
-        // Try to construct a domain from the game name
+        // Try multiple domain patterns for unknown games
         const slug = normalized.replace(/[^a-z0-9]+/g, '-');
-        const constructedDomain = `${slug}.fandom.com`;
-        console.log(`🔧 [Wiki] Constructed domain for "${gameName}": ${constructedDomain}`);
-        return constructedDomain;
+        const altSlug = slug.replace(/^roblox-/, '');
+        const patterns = [
+            `${slug}.fandom.com`,
+            `roblox-${slug}.fandom.com`,
+            `roblox${slug}.fandom.com`,
+            `${slug}wiki.fandom.com`,
+            `${altSlug}.fandom.com`,
+            `roblox-${altSlug}.fandom.com`,
+            `roblox${altSlug}.fandom.com`,
+            `${altSlug}wiki.fandom.com`,
+        ];
+        for (const domain of patterns) {
+            try {
+                // Try to fetch the Codes page to see if the wiki exists
+                const apiUrl = this._getApiUrl(domain);
+                const response = await axios.get(apiUrl, {
+                    params: {
+                        action: 'parse',
+                        page: 'Codes',
+                        prop: 'text',
+                        format: 'json',
+                        redirects: 1
+                    },
+                    timeout: this.timeout,
+                    headers: {
+                        'User-Agent': 'RobloxPresenceBot/1.0 (Discord Bot)'
+                    }
+                });
+                if (response.data && response.data.parse && response.data.parse.text) {
+                    console.log(`🎯 [Wiki] Guessed domain for "${gameName}": ${domain}`);
+                    return domain;
+                }
+            } catch (e) {
+                // Try next pattern
+            }
+        }
+        // Fallback to the first pattern if all else fails
+        console.log(`🔧 [Wiki] Fallback domain for "${gameName}": ${patterns[0]}`);
+        return patterns[0];
     }
 
     /**
@@ -63,7 +98,7 @@ class FandomWikiService {
     async searchGame(gameName) {
         try {
             // Determine the wiki domain for this game
-            const domain = this._getWikiDomain(gameName);
+            const domain = await this._getWikiDomain(gameName);
             
             // First attempt: Search for "Codes" page directly
             console.log(`🔍 [Wiki] Searching for Codes page on ${domain}...`);
@@ -173,21 +208,27 @@ class FandomWikiService {
 
             // First look for specific robust section markers (e.g., "Working Codes")
             const robustPatterns = [
-                // Wiki tabber content (Common in Fandom wikis)
-                /<div[^>]*class="[^"]*wds-tab__content[^"]*wds-is-current[^"]*"[^>]*>([\s\S]+?)<\/div>/i,
-                // "Working Codes" header or span
-                /<span[^>]*id="Working_Codes"[^>]*>([\s\S]+?)(?=<h2|<span[^>]*id="Expired_Codes"|$)/i,
-                /<h[2-4][^>]*>[\s\n]*(?:Active|Working)\s+Codes?[\s\n]*<\/h[2-4]>([\s\S]{0,10000}?)(?=<h[2-4]|$)/i
+                // Dress To Impress: Active Codes table by id
+                /id="Active_Codes"[\s\S]{0,2000}?<table[^>]*id="tpt-codes"[\s\S]*?<\/table>/i,
+                // Find any table that contains <code> tags (most direct)
+                /<table[\s\S]{0,10000}?<code>[\s\S]{0,20000}?<\/table>/i,
+                // Or look for Working Codes section and grab everything until next h2/h3
+                /Working_Codes[\s\S]{0,500}?(?=<h2|<h3|$)?[\s\S]{0,15000}?(?=<h2|<h3|Expired_Codes|$)/i,
+                // Standard heading patterns
+                /<h[2-4][^>]*>[\s\n]*(?:Active\s+)?Codes?[\s\n]*<\/h[2-4]>([\s\S]{0,15000}?)(?=<h[2-4]|$)/i,
             ];
 
             for (const pattern of robustPatterns) {
                 const match = html.match(pattern);
-                if (match && match[1]) {
-                    codesSection = match[1];
-                    console.log('✅ [Wiki] Found robust code section');
-                    break;
+                if (match) {
+                    codesSection = match[1] || match[0];
+                    if (codesSection && codesSection.includes('<')) {
+                        console.log('✅ [Wiki] Found robust code section');
+                        break;
+                    }
                 }
             }
+            
             
             // If no robust section found, proceed with standard patterns
             if (!codesSection) {
@@ -220,30 +261,36 @@ class FandomWikiService {
 
             // Extract individual code blocks with improved patterns
             const codePatterns = [
-                // Format 1: Code tags inside table cells (PRIMARY - most common on modern wikis)
+                // Format 0: Table rows with checkbox cell then code in data-text and reward in next column
+                /<tr[^>]*>[\s\S]*?<td[^>]*table-progress-checkbox-cell[^>]*>[\s\S]*?<\/td>[\s\S]*?<td[^>]*>[\s\S]*?data-text="([^"]{3,50})"[\s\S]*?<\/td>[\s\S]*?<td[^>]*>([\s\S]{0,1200}?)<\/td>/gi,
+                // Format 1: List items with <b>CODE</b> - reward (common on Roblox Rivals)
+                /<li[^>]*>[\s\n]*<b[^>]*>([^<]{3,50})<\/b>[\s\n]*(?:-|–|:)[\s\n]*([\s\S]{0,120}?)(?=<\/li|<br|$)/gi,
+                // Format 2: Table row with code (maybe in <code>) and reward in next column
+                /<tr[^>]*>[\s\S]*?<td[^>]*>[\s\S]*?(?:<code[^>]*>)?([A-Za-z0-9\-_]{3,50})(?:<\/code>)?[\s\S]*?<\/td>[\s\S]*?<td[^>]*>([\s\S]{0,1200}?)<\/td>/gi,
+                // Format 3: Code tags inside table cells (PRIMARY - most common on modern wikis)
                 /<td[^>]*>[\s\S]*?<code[^>]*>([A-Za-z0-9\-_]{3,50})<\/code>[\s\S]*?<\/td>/gi,
-                // Format 2: Table rows with code in first column (handles mixed case)
-                /<td[^>]*>[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*<\/td>[\s\S]{0,500}?<td[^>]*>([\s\S]{0,200}?)<\/td>/gi,
-                // Format 3: List items with codes
+                // Format 4: Table rows with code in first column (handles mixed case)
+                /<td[^>]*>[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*<\/td>[\s\S]{0,500}?<td[^>]*>([\s\S]{0,1200}?)<\/td>/gi,
+                // Format 5: List items with <code>
                 /<li[^>]*>[\s\n]*<code[^>]*>([A-Za-z0-9\-_]{3,50})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<\/li>/gi,
-                // Format 4: Direct code+description in <p> tags
+                // Format 6: List items without <code> (CODE - reward)
+                /<li[^>]*>[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*(?:-|–|:)[\s\n]*([\s\S]{0,120}?)(?=<\/li|<br|$)/gi,
+                // Format 7: Direct code+description in <p> tags
                 /<p[^>]*>[\s\n]*<code[^>]*>([A-Za-z0-9\-_]{3,50})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<\/p>/gi,
-                // Format 5: Code in strong/bold tags
+                // Format 8: Code in strong/bold tags
                 /<(?:strong|b)[^>]*>([A-Za-z0-9\-_]{3,50})<\/(?:strong|b)>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<br/gi,
-                // Format 6: Code with pipe separator (wiki table format)
+                // Format 9: Code with pipe separator (wiki table format)
                 /\|[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*\|[\s\n]*([\s\S]{0,100}?)\|/gi,
-                // Format 7: Plain code tags followed by description
+                // Format 10: Plain code tags followed by description
                 /<code[^>]*>([A-Za-z0-9\-_]{3,50})<\/code>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)(?=<code|<\/li|<\/td|<\/p|<br|$)/gi,
-                // Format 8: Code in divs or spans
-                /<(?:div|span)[^>]*>[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*<\/(?:div|span)>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<br/gi,
-                // Format 9: Simple text nodes in table cells (catches any alphanumeric code)
-                /<td[^>]*>\s*(?:<[^>]+>)*\s*([A-Za-z0-9_\-]{3,50})\s*(?:<\/[^>]+>)?\s*<\/td>/gi
+                // Format 11: Code in divs or spans
+                /<(?:div|span)[^>]*>[\s\n]*([A-Za-z0-9\-_]{3,50})[\s\n]*<\/(?:div|span)>[\s\n]*(?:-|–|:)?[\s\n]*([\s\S]{0,100}?)<br/gi
             ];
 
             for (const pattern of codePatterns) {
                 let match;
                 while ((match = pattern.exec(codesSection)) !== null) {
-                    const code = match[1].trim();
+                    const code = this._decodeHTMLEntities(match[1]).trim();
                     const description = match[2]?.trim() || '';
 
                     // Avoid duplicates and filter out noise
@@ -261,23 +308,27 @@ class FandomWikiService {
             }
 
             // Fallback: If almost no codes found, try broader extraction
+            // BUT ONLY match text that's between tags (not in attributes)
             if (codes.length === 0) {
-                const plainCodePattern = /\b([A-Za-z0-9]{4,50}(?:[_\-][A-Za-z0-9]{2,})?)\b/g;
-                const matches = codesSection.match(plainCodePattern);
-                if (matches) {
-                    const uniqueCodes = [...new Set(matches)];
-                    uniqueCodes.slice(0, 20).forEach(code => {
-                        if (!this._isNoise(code)) {
-                            codes.push({ code, reward: 'Unknown reward' });
-                        }
-                    });
+                // Extract only text nodes between > and < (never inside tag definitions)
+                const plainCodePattern = />[\s\n]*([A-Za-z0-9\-_]{4,50})[\s\n]*</g;
+                let match;
+                while ((match = plainCodePattern.exec(codesSection)) !== null) {
+                    const code = match[1].trim();
+                    if (
+                        code.length >= 4 &&
+                        !codes.some(c => c.code === code) &&
+                        !this._isNoise(code)
+                    ) {
+                        codes.push({ code, reward: 'Unknown reward' });
+                    }
                 }
             }
 
             console.log(`✅ [Wiki] Extracted ${codes.length} codes from section`);
             return {
                 found: true,
-                codes: codes.slice(0, 15) // Limit to 15 codes for Discord embed
+                codes: codes.slice(0, 30) // Limit to 30 codes for Discord embed
             };
         } catch (error) {
             console.error('Error extracting codes:', error.message);
@@ -294,9 +345,30 @@ class FandomWikiService {
             /^(HTML|BODY|DIV|SPAN|CLASS|STYLE|HREF|DATA|BORDER|WIDTH|HEIGHT)$/i,
             /^(HERE|THERE|WHERE|WHEN|WHAT|THIS|THAT|WHICH)$/i,
             /^(REWARDS?|GIFTS?|PRIZE|ITEMS?)$/i,
+            /^(ACTIVE|WORKING|EXPIRED|EXPIRED_CODES|WORKING_CODES)$/i,
+            /^(CONTENT|EMPTY|EDIT|LINK|SECTIONS?|CODES?)$/i,
+            /^(MOBILEONLY|DESKTOP|MOBILE|BROWSER)$/i,
+            /^(ELT|SECTION|TAB|HEADER|BODY|PAGE)$/i,
+            /^(KEYS?|CRYSTALS?|GEMS?|COINS?|GOLD|MONEY|CASH|CREDITS?)$/i,
+            /^(XP|EXP|EXPERIENCE|RESET|STAT|STATS?)$/i,
             /^[A-Z]{2}$/, // Too short
         ];
         return noisePatterns.some(pattern => pattern.test(text));
+    }
+
+    /**
+     * Decode HTML entities (for codes like MERRYMERRYXMAS&lt;3)
+     * @private
+     */
+    _decodeHTMLEntities(text) {
+        if (!text) return '';
+        return text
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#039;/g, "'");
     }
 
     /**
@@ -307,6 +379,10 @@ class FandomWikiService {
         if (!text) return '';
         
         return text
+            .replace(/<\s*br\s*\/?\s*>/gi, ' ')
+            .replace(/<\s*\/\s*li\s*>\s*<\s*li[^>]*\s*>/gi, ', ')
+            .replace(/<\s*li[^>]*\s*>/gi, '')
+            .replace(/<\s*\/\s*li\s*>/gi, '')
             .replace(/<[^>]*>/g, '') // Remove HTML tags
             .replace(/&nbsp;/g, ' ')
             .replace(/&amp;/g, '&')
@@ -314,8 +390,8 @@ class FandomWikiService {
             .replace(/&gt;/g, '>')
             .replace(/&quot;/g, '"')
             .replace(/&#039;/g, "'")
+            .replace(/\s+/g, ' ')
             .trim()
-            .split('\n')[0] // Get first line only
             .substring(0, 100); // Limit length
     }
 }

@@ -203,9 +203,13 @@ for (const file of commandFiles) {
 }
 
 // Bot Ready Event
-client.once('ready', () => {
+client.once('ready', async () => {
     console.log(`\n🤖 Discord bot logged in as ${client.user.tag}`);
     console.log(`📦 Loaded ${client.commands.size} commands\n`);
+
+    // Connect to MongoDB
+    const db = require('./services/db');
+    await db.connect();
 
     client.user.setActivity('Roblox players 👀', { type: 'WATCHING' });
 

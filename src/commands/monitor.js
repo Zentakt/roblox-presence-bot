@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const db = require('../services/db');
+const { User, GuildConfig } = require('../services/db');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -37,7 +37,7 @@ module.exports = {
             });
         }
 
-        const userRecord = await db.get('SELECT * FROM users WHERE discord_id = ?', [targetUser.id]);
+        const userRecord = await User.findOne({ discord_id: targetUser.id });
 
         if (!userRecord) {
             return interaction.reply({
@@ -48,17 +48,17 @@ module.exports = {
         }
 
         try {
-            await db.run(`
-                INSERT OR REPLACE INTO guild_config
-                (guild_id, target_roblox_id, channel_id, role_id, created_by)
-                VALUES (?, ?, ?, ?, ?)
-            `, [
-                interaction.guildId,
-                userRecord.roblox_user_id,
-                channel.id,
-                role?.id || null,
-                interaction.user.id
-            ]);
+            await GuildConfig.findOneAndUpdate(
+                { guild_id: interaction.guildId },
+                {
+                    target_roblox_id: userRecord.roblox_user_id,
+                    channel_id: channel.id,
+                    role_id: role?.id || null,
+                    created_by: interaction.user.id,
+                    created_at: new Date()
+                },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
 
             const embed = new EmbedBuilder()
                 .setColor(0x00b06f)

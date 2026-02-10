@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const db = require('../services/db');
+const { User, GuildConfig } = require('../services/db');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -7,7 +7,7 @@ module.exports = {
         .setDescription('🔐 Revoke bot access to your Roblox account'),
 
     async execute(interaction) {
-        const userRecord = await db.get('SELECT * FROM users WHERE discord_id = ?', [interaction.user.id]);
+        const userRecord = await User.findOne({ discord_id: interaction.user.id });
 
         if (!userRecord) {
             return interaction.reply({
@@ -17,8 +17,8 @@ module.exports = {
         }
 
         try {
-            await db.run('DELETE FROM users WHERE discord_id = ?', [interaction.user.id]);
-            await db.run('DELETE FROM guild_config WHERE target_roblox_id = ?', [userRecord.roblox_user_id]);
+            await User.deleteOne({ discord_id: interaction.user.id });
+            await GuildConfig.deleteMany({ target_roblox_id: userRecord.roblox_user_id });
 
             const embed = new EmbedBuilder()
                 .setColor(0xff6b6b)

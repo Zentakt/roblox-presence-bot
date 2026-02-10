@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const db = require('./db');
+const { User, GuildConfig } = require('./db');
 const auth = require('./auth');
 
 const ROBLOX_PRESENCE_API = 'https://presence.roblox.com/v1/presence/users';
@@ -41,13 +41,11 @@ class MonitorService {
     }
 
     async poll() {
-        const targets = await db.all(`
-            SELECT DISTINCT target_roblox_id FROM guild_config
-        `);
+        const targets = await GuildConfig.distinct('target_roblox_id');
 
         if (targets.length === 0) return;
 
-        for (const { target_roblox_id } of targets) {
+        for (const target_roblox_id of targets) {
             try {
                 await this.checkUserPresence(target_roblox_id);
             } catch (error) {
@@ -97,22 +95,25 @@ class MonitorService {
     }
 
     async handleStateChange(userId, presence) {
-        const userRecord = await db.get('SELECT * FROM users WHERE roblox_user_id = ?', [userId]);
+        const userRecord = await User.findOne({ roblox_user_id: userId });
         if (!userRecord) return;
 
         const presenceType = presence.userPresenceType;
         const currentState = presenceType === 2 ? 'InGame' : presenceType === 1 ? 'Online' : 'Offline';
         const previousState = userRecord.last_state || 'Offline';
-        
+
         // Handle both placeId and rootPlaceId from presence response
         const placeId = presence.placeId || presence.rootPlaceId || null;
         const previousPlaceId = userRecord.last_place_id;
 
-        await db.run(`
-            UPDATE users
-            SET last_state = ?, last_place_id = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE roblox_user_id = ?
-        `, [currentState, placeId, userId]);
+        await User.updateOne(
+            { roblox_user_id: userId },
+            {
+                last_state: currentState,
+                last_place_id: placeId,
+                updated_at: new Date()
+            }
+        );
 
         if (currentState === 'InGame' && (previousState !== 'InGame' || placeId !== previousPlaceId)) {
             console.log(`🎮 ${userRecord.roblox_username} started playing!`);
@@ -184,7 +185,7 @@ class MonitorService {
     }
 
     async buildNotificationEmbed(userId, presence) {
-        const user = await db.get('SELECT * FROM users WHERE roblox_user_id = ?', [userId]);
+        const user = await User.findOne({ roblox_user_id: userId });
         const gameInfo = await this.getGameInfo(presence.placeId);
         const avatar = await this.getUserAvatar(userId);
 
@@ -235,9 +236,7 @@ class MonitorService {
     }
 
     async broadcastNotification(userId, presence) {
-        const subscribers = await db.all(`
-            SELECT * FROM guild_config WHERE target_roblox_id = ?
-        `, [userId]);
+        const subscribers = await GuildConfig.find({ target_roblox_id: userId });
 
         if (subscribers.length === 0) {
             console.warn(`⚠️ No subscribers for user ${userId}`);
@@ -269,13 +268,13 @@ class MonitorService {
     }
 
     async getStatus() {
-        const targets = await db.get('SELECT COUNT(*) as count FROM guild_config');
-        const users = await db.get('SELECT COUNT(*) as count FROM users');
+        const targets = await GuildConfig.countDocuments();
+        const users = await User.countDocuments();
 
         return {
             isRunning: this.isRunning,
-            activeTargets: targets?.count || 0,
-            linkedUsers: users?.count || 0,
+            activeTargets: targets,
+            linkedUsers: users,
             lastError: this.lastError,
             pollInterval: parseInt(process.env.POLL_INTERVAL_MS || 60000)
         };
