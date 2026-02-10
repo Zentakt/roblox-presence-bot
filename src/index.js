@@ -287,6 +287,23 @@ process.on('SIGINT', async () => {
     });
 });
 
-// Login to Discord
+// Login to Discord with timeout
 console.log('Attempting to log into Discord...');
-client.login(process.env.DISCORD_TOKEN).catch(console.error);
+console.log('Token starts with:', process.env.DISCORD_TOKEN?.substring(0, 10) + '...');
+
+const loginTimeout = setTimeout(() => {
+    console.error('❌ Discord login timed out after 30 seconds!');
+    console.error('This usually means the DISCORD_TOKEN is invalid.');
+    console.error('Token length:', process.env.DISCORD_TOKEN?.length);
+}, 30000);
+
+client.login(process.env.DISCORD_TOKEN)
+    .then(() => {
+        clearTimeout(loginTimeout);
+        console.log('✅ client.login() resolved successfully');
+    })
+    .catch(err => {
+        clearTimeout(loginTimeout);
+        console.error('❌ client.login() FAILED:', err.message);
+        console.error('Error code:', err.code);
+    });
