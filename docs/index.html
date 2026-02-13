@@ -7,7 +7,7 @@
     <title>Zentility - Roblox Presence Bot</title>
     <meta name="description"
         content="Get real-time Discord notifications when your Roblox friends start playing games. Secure OAuth 2.0, beautiful embeds, and easy setup.">
-    <meta name="theme-color" content="#00cf82">
+    <meta name="theme-color" content="#00ff78">
     <meta property="og:title" content="Zentility - Roblox Presence Bot">
     <meta property="og:description" content="Discord bot for real-time Roblox presence monitoring with OAuth 2.0">
     <meta property="og:type" content="website">
@@ -15,279 +15,367 @@
 </head>
 
 <body>
-    <!-- WebGL Particle Canvas -->
-    <canvas id="webgl-canvas"></canvas>
+    <!-- Matrix Rain Canvas -->
+    <canvas id="matrix-canvas"></canvas>
+    <!-- Scanline Overlay -->
+    <div class="scanline-overlay"></div>
+    <!-- React Root -->
+    <div id="root"></div>
 
-    <nav class="navbar">
-        <div class="container">
-            <div class="logo">Zentility</div>
-            <ul class="nav-links">
-                <li><a href="#features">Features</a></li>
-                <li><a href="#how-it-works">How It Works</a></li>
-                <li><a href="privacy.html">Privacy</a></li>
-                <li><a href="terms.html">Terms</a></li>
-            </ul>
-        </div>
-    </nav>
+    <!-- React + ReactDOM CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- GSAP + ScrollTrigger CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 
-    <header class="hero">
-        <div class="container" data-animate>
-            <h1><span>Zentility</span></h1>
-            <p class="subtitle">Discord Bot for Roblox Presence Monitoring</p>
-            <p class="description">Get notified when your Roblox friends start playing games</p>
-            <button class="cta-button"
-                onclick="window.open('https://discord.com/oauth2/authorize?client_id=1470243453303783535&permissions=8&integration_type=0&scope=applications.commands+bot', '_blank')">🚀
-                Add to Discord</button>
-        </div>
-    </header>
-
-    <section id="features" class="features">
-        <div class="container">
-            <h2 data-animate>Features</h2>
-            <div class="feature-grid">
-                <div class="feature-card" data-animate data-animate-delay="1">
-                    <div class="feature-icon">🎮</div>
-                    <h3>Presence Monitoring</h3>
-                    <p>Real-time detection when your tracked Roblox users start playing games.</p>
-                </div>
-                <div class="feature-card" data-animate data-animate-delay="2">
-                    <div class="feature-icon">🔐</div>
-                    <h3>Secure OAuth</h3>
-                    <p>Official Roblox OAuth 2.0 integration. Your tokens are encrypted and secure.</p>
-                </div>
-                <div class="feature-card" data-animate data-animate-delay="3">
-                    <div class="feature-icon">📬</div>
-                    <h3>Discord Notifications</h3>
-                    <p>Beautiful embeds with game details, thumbnails, and one-click join buttons.</p>
-                </div>
-                <div class="feature-card" data-animate data-animate-delay="4">
-                    <div class="feature-icon">⚙️</div>
-                    <h3>Easy Setup</h3>
-                    <p>Simple slash commands. Link your account and start tracking in seconds.</p>
-                </div>
-                <div class="feature-card" data-animate data-animate-delay="5">
-                    <div class="feature-icon">🚀</div>
-                    <h3>Fast &amp; Reliable</h3>
-                    <p>Efficient polling system with configurable intervals for optimal performance.</p>
-                </div>
-                <div class="feature-card" data-animate data-animate-delay="6">
-                    <div class="feature-icon">✨</div>
-                    <h3>Per-Server Config</h3>
-                    <p>Configure presence tracking separately for each Discord server.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="how-it-works" class="how-it-works">
-        <div class="container">
-            <h2 data-animate>How It Works</h2>
-            <div class="steps">
-                <div class="step" data-animate data-animate-delay="1">
-                    <div class="step-number">1</div>
-                    <h3>Add the Bot</h3>
-                    <p>Invite Zentility to your Discord server</p>
-                </div>
-                <div class="step" data-animate data-animate-delay="2">
-                    <div class="step-number">2</div>
-                    <h3>Link Account</h3>
-                    <p>Use /linkroblox to authorize your Roblox account with OAuth 2.0</p>
-                </div>
-                <div class="step" data-animate data-animate-delay="3">
-                    <div class="step-number">3</div>
-                    <h3>Set Up Monitoring</h3>
-                    <p>Use /monitor to choose which users to track and where to send notifications</p>
-                </div>
-                <div class="step" data-animate data-animate-delay="4">
-                    <div class="step-number">4</div>
-                    <h3>Get Notified</h3>
-                    <p>Receive instant Discord notifications when users start playing Roblox</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="commands">
-        <div class="container">
-            <h2 data-animate>Available Commands</h2>
-            <div class="command-list">
-                <div class="command" data-animate data-animate-delay="1">
-                    <code>/linkroblox</code>
-                    <p>Connect your Roblox account using OAuth 2.0</p>
-                </div>
-                <div class="command" data-animate data-animate-delay="2">
-                    <code>/monitor @user #channel [role]</code>
-                    <p>Set up presence monitoring for this server</p>
-                </div>
-                <div class="command" data-animate data-animate-delay="3">
-                    <code>/status</code>
-                    <p>View bot status and monitoring information</p>
-                </div>
-                <div class="command" data-animate data-animate-delay="4">
-                    <code>/testembed</code>
-                    <p>Send a preview notification embed</p>
-                </div>
-                <div class="command" data-animate data-animate-delay="5">
-                    <code>/unlink</code>
-                    <p>Revoke bot access to your Roblox account</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <footer class="footer">
-        <div class="container">
-            <p>&copy; 2026 Zentility. All rights reserved.</p>
-            <div class="footer-links">
-                <a href="privacy.html">Privacy Policy</a>
-                <a href="terms.html">Terms of Service</a>
-            </div>
-        </div>
-    </footer>
-
-    <!-- WebGL Particle System -->
+    <!-- WebGL Matrix Rain -->
     <script>
         (function () {
-            const canvas = document.getElementById('webgl-canvas');
-            const gl = canvas.getContext('webgl', { alpha: true, antialias: true });
-            if (!gl) return;
+            const canvas = document.getElementById('matrix-canvas');
+            const ctx = canvas.getContext('2d');
 
             function resize() {
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
-                gl.viewport(0, 0, canvas.width, canvas.height);
             }
             resize();
             window.addEventListener('resize', resize);
 
-            // Shaders
-            const vsSource = `
-            attribute vec2 aPos;
-            attribute float aSize;
-            attribute float aAlpha;
-            uniform vec2 uRes;
-            varying float vAlpha;
-            void main() {
-                vec2 clip = (aPos / uRes) * 2.0 - 1.0;
-                clip.y = -clip.y;
-                gl_Position = vec4(clip, 0.0, 1.0);
-                gl_PointSize = aSize;
-                vAlpha = aAlpha;
-            }
-        `;
-            const fsSource = `
-            precision mediump float;
-            varying float vAlpha;
-            void main() {
-                float d = length(gl_PointCoord - vec2(0.5));
-                if (d > 0.5) discard;
-                float glow = smoothstep(0.5, 0.0, d);
-                gl_FragColor = vec4(0.0, 0.81, 0.51, vAlpha * glow * 0.6);
-            }
-        `;
+            const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ{}[]<>|/\\+=*&^%$#@!';
+            const charArr = chars.split('');
+            const fontSize = 14;
+            let columns = Math.floor(canvas.width / fontSize);
+            let drops = Array(columns).fill(1).map(() => Math.random() * -100);
+            let speeds = Array(columns).fill(1).map(() => 0.3 + Math.random() * 0.7);
 
-            function compile(type, src) {
-                const s = gl.createShader(type);
-                gl.shaderSource(s, src);
-                gl.compileShader(s);
-                return s;
-            }
+            window.addEventListener('resize', () => {
+                columns = Math.floor(canvas.width / fontSize);
+                drops = Array(columns).fill(1).map(() => Math.random() * -100);
+                speeds = Array(columns).fill(1).map(() => 0.3 + Math.random() * 0.7);
+            });
 
-            const prog = gl.createProgram();
-            gl.attachShader(prog, compile(gl.VERTEX_SHADER, vsSource));
-            gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fsSource));
-            gl.linkProgram(prog);
-            gl.useProgram(prog);
+            function drawMatrix() {
+                ctx.fillStyle = 'rgba(1, 2, 8, 0.06)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            const aPos = gl.getAttribLocation(prog, 'aPos');
-            const aSize = gl.getAttribLocation(prog, 'aSize');
-            const aAlpha = gl.getAttribLocation(prog, 'aAlpha');
-            const uRes = gl.getUniformLocation(prog, 'uRes');
+                for (let i = 0; i < columns; i++) {
+                    const char = charArr[Math.floor(Math.random() * charArr.length)];
+                    const x = i * fontSize;
+                    const y = drops[i] * fontSize;
 
-            // Particles
-            const N = 120;
-            const particles = [];
-            for (let i = 0; i < N; i++) {
-                particles.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    vx: (Math.random() - 0.5) * 0.4,
-                    vy: (Math.random() - 0.5) * 0.3 - 0.15,
-                    size: Math.random() * 3 + 1.5,
-                    alpha: Math.random() * 0.6 + 0.15,
-                    phase: Math.random() * Math.PI * 2
-                });
-            }
+                    // Leading bright character
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#00ff78';
+                    ctx.fillStyle = '#00ff78';
+                    ctx.font = fontSize + 'px JetBrains Mono, monospace';
+                    ctx.fillText(char, x, y);
 
-            const posBuf = gl.createBuffer();
-            const sizeBuf = gl.createBuffer();
-            const alphaBuf = gl.createBuffer();
+                    // Trail characters (dimmer)
+                    ctx.shadowBlur = 0;
+                    for (let t = 1; t < 6; t++) {
+                        const trailY = y - t * fontSize;
+                        if (trailY > 0) {
+                            const alpha = 0.3 - (t * 0.05);
+                            if (alpha > 0) {
+                                ctx.fillStyle = `rgba(0, 255, 120, ${alpha})`;
+                                const trailChar = charArr[Math.floor(Math.random() * charArr.length)];
+                                ctx.fillText(trailChar, x, trailY);
+                            }
+                        }
+                    }
 
-            gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+                    drops[i] += speeds[i];
 
-            function frame(t) {
-                const w = canvas.width, h = canvas.height;
-                const posArr = new Float32Array(N * 2);
-                const sizeArr = new Float32Array(N);
-                const alphaArr = new Float32Array(N);
-
-                for (let i = 0; i < N; i++) {
-                    const p = particles[i];
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.x += Math.sin(t * 0.0005 + p.phase) * 0.15;
-
-                    if (p.x < -10) p.x = w + 10;
-                    if (p.x > w + 10) p.x = -10;
-                    if (p.y < -10) p.y = h + 10;
-                    if (p.y > h + 10) p.y = -10;
-
-                    posArr[i * 2] = p.x;
-                    posArr[i * 2 + 1] = p.y;
-                    sizeArr[i] = p.size * (1 + Math.sin(t * 0.001 + p.phase) * 0.3);
-                    alphaArr[i] = p.alpha * (0.7 + Math.sin(t * 0.0008 + p.phase) * 0.3);
+                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.98) {
+                        drops[i] = 0;
+                    }
                 }
 
-                gl.clearColor(0, 0, 0, 0);
-                gl.clear(gl.COLOR_BUFFER_BIT);
-                gl.uniform2f(uRes, w, h);
-
-                gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
-                gl.bufferData(gl.ARRAY_BUFFER, posArr, gl.DYNAMIC_DRAW);
-                gl.enableVertexAttribArray(aPos);
-                gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-
-                gl.bindBuffer(gl.ARRAY_BUFFER, sizeBuf);
-                gl.bufferData(gl.ARRAY_BUFFER, sizeArr, gl.DYNAMIC_DRAW);
-                gl.enableVertexAttribArray(aSize);
-                gl.vertexAttribPointer(aSize, 1, gl.FLOAT, false, 0, 0);
-
-                gl.bindBuffer(gl.ARRAY_BUFFER, alphaBuf);
-                gl.bufferData(gl.ARRAY_BUFFER, alphaArr, gl.DYNAMIC_DRAW);
-                gl.enableVertexAttribArray(aAlpha);
-                gl.vertexAttribPointer(aAlpha, 1, gl.FLOAT, false, 0, 0);
-
-                gl.drawArrays(gl.POINTS, 0, N);
-                requestAnimationFrame(frame);
+                requestAnimationFrame(drawMatrix);
             }
-            requestAnimationFrame(frame);
+            drawMatrix();
         })();
     </script>
 
-    <!-- Scroll Reveal Animation -->
+    <!-- React Application -->
     <script>
-        (function () {
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('visible');
-                    }
-                });
-            }, { threshold: 0.12 });
+        const e = React.createElement;
 
-            document.querySelectorAll('[data-animate]').forEach(el => observer.observe(el));
-        })();
+        // ─── Navbar Component ───
+        function Navbar() {
+            return e('nav', { className: 'navbar' },
+                e('div', { className: 'container' },
+                    e('div', { className: 'logo' }, '> ZENTILITY_'),
+                    e('ul', { className: 'nav-links' },
+                        e('li', null, e('a', { href: '#features' }, 'Features')),
+                        e('li', null, e('a', { href: '#how-it-works' }, 'How It Works')),
+                        e('li', null, e('a', { href: 'privacy.html' }, 'Privacy')),
+                        e('li', null, e('a', { href: 'terms.html' }, 'Terms'))
+                    )
+                )
+            );
+        }
+
+        // ─── Hero Component ───
+        function Hero() {
+            return e('header', { className: 'hero' },
+                e('div', { className: 'container' },
+                    e('div', { className: 'hero-content' },
+                        e('div', { className: 'hero-badge gs-hidden' },
+                            e('span', { className: 'pulse-dot' }),
+                            'System Online'
+                        ),
+                        e('h1', { className: 'gs-hidden' },
+                            e('span', { className: 'title-text' }, 'Zentility')
+                        ),
+                        e('p', { className: 'subtitle gs-hidden' }, 'Discord Bot for Roblox Presence Monitoring'),
+                        e('p', { className: 'description gs-hidden' }, 'Get notified when your Roblox friends start playing games'),
+                        e('div', { className: 'cta-group gs-hidden' },
+                            e('a', {
+                                className: 'cta-button primary',
+                                href: 'https://discord.com/oauth2/authorize?client_id=1470243453303783535&permissions=8&integration_type=0&scope=applications.commands+bot',
+                                target: '_blank',
+                                rel: 'noopener noreferrer'
+                            }, '🚀 Add to Discord'),
+                            e('a', {
+                                className: 'cta-button secondary',
+                                href: '#features'
+                            }, '↓ Explore')
+                        )
+                    )
+                )
+            );
+        }
+
+        // ─── Feature Card Component ───
+        function FeatureCard({ icon, title, description, delay }) {
+            return e('div', { className: 'feature-card gs-hidden', 'data-delay': delay },
+                e('div', { className: 'feature-icon' }, icon),
+                e('h3', null, title),
+                e('p', null, description)
+            );
+        }
+
+        // ─── Features Section ───
+        function Features() {
+            const features = [
+                { icon: '🎮', title: 'Presence Monitoring', description: 'Real-time detection when your tracked Roblox users start playing games.' },
+                { icon: '🔐', title: 'Secure OAuth', description: 'Official Roblox OAuth 2.0 integration. Your tokens are encrypted and secure.' },
+                { icon: '📬', title: 'Discord Notifications', description: 'Beautiful embeds with game details, thumbnails, and one-click join buttons.' },
+                { icon: '⚙️', title: 'Easy Setup', description: 'Simple slash commands. Link your account and start tracking in seconds.' },
+                { icon: '🚀', title: 'Fast & Reliable', description: 'Efficient polling system with configurable intervals for optimal performance.' },
+                { icon: '✨', title: 'Per-Server Config', description: 'Configure presence tracking separately for each Discord server.' }
+            ];
+
+            return e('section', { id: 'features', className: 'features' },
+                e('div', { className: 'container' },
+                    e('div', { className: 'section-header gs-hidden' },
+                        e('h2', null, 'Features'),
+                        e('div', { className: 'section-line' }),
+                        e('p', null, 'Everything you need for Roblox presence tracking')
+                    ),
+                    e('div', { className: 'feature-grid' },
+                        features.map((f, i) =>
+                            e(FeatureCard, { key: i, icon: f.icon, title: f.title, description: f.description, delay: i * 0.1 })
+                        )
+                    )
+                )
+            );
+        }
+
+        // ─── Step Component ───
+        function StepCard({ number, title, description }) {
+            return e('div', { className: 'step gs-hidden' },
+                e('div', { className: 'step-number' }, number),
+                e('h3', null, title),
+                e('p', null, description)
+            );
+        }
+
+        // ─── How It Works Section ───
+        function HowItWorks() {
+            const steps = [
+                { number: '1', title: 'Add the Bot', description: 'Invite Zentility to your Discord server' },
+                { number: '2', title: 'Link Account', description: 'Use /linkroblox to authorize your Roblox account with OAuth 2.0' },
+                { number: '3', title: 'Set Up Monitoring', description: 'Use /monitor to choose which users to track and where to send notifications' },
+                { number: '4', title: 'Get Notified', description: 'Receive instant Discord notifications when users start playing Roblox' }
+            ];
+
+            return e('section', { id: 'how-it-works', className: 'how-it-works' },
+                e('div', { className: 'container' },
+                    e('div', { className: 'section-header gs-hidden' },
+                        e('h2', null, 'How It Works'),
+                        e('div', { className: 'section-line' }),
+                        e('p', null, 'Get started in under a minute')
+                    ),
+                    e('div', { className: 'steps' },
+                        steps.map((s, i) =>
+                            e(StepCard, { key: i, number: s.number, title: s.title, description: s.description })
+                        )
+                    )
+                )
+            );
+        }
+
+        // ─── Command Component ───
+        function CommandCard({ command, description }) {
+            return e('div', { className: 'command gs-hidden' },
+                e('code', null, command),
+                e('p', null, description)
+            );
+        }
+
+        // ─── Commands Section ───
+        function Commands() {
+            const commands = [
+                { command: '/linkroblox', description: 'Connect your Roblox account using OAuth 2.0' },
+                { command: '/monitor @user #channel [role]', description: 'Set up presence monitoring for this server' },
+                { command: '/status', description: 'View bot status and monitoring information' },
+                { command: '/testembed', description: 'Send a preview notification embed' },
+                { command: '/unlink', description: 'Revoke bot access to your Roblox account' }
+            ];
+
+            return e('section', { className: 'commands' },
+                e('div', { className: 'container' },
+                    e('div', { className: 'section-header gs-hidden' },
+                        e('h2', null, 'Available Commands'),
+                        e('div', { className: 'section-line' }),
+                        e('p', null, 'Simple slash commands for full control')
+                    ),
+                    e('div', { className: 'command-list' },
+                        commands.map((c, i) =>
+                            e(CommandCard, { key: i, command: c.command, description: c.description })
+                        )
+                    )
+                )
+            );
+        }
+
+        // ─── Footer Component ───
+        function Footer() {
+            return e('footer', { className: 'footer' },
+                e('div', { className: 'container' },
+                    e('p', null, '© 2026 Zentility. All rights reserved.'),
+                    e('div', { className: 'footer-links' },
+                        e('a', { href: 'privacy.html' }, 'Privacy Policy'),
+                        e('a', { href: 'terms.html' }, 'Terms of Service')
+                    )
+                )
+            );
+        }
+
+        // ─── App Component ───
+        function App() {
+            React.useEffect(() => {
+                initGSAP();
+            }, []);
+
+            return e(React.Fragment, null,
+                e(Navbar),
+                e(Hero),
+                e(Features),
+                e(HowItWorks),
+                e(Commands),
+                e(Footer)
+            );
+        }
+
+        // ─── GSAP Animations ───
+        function initGSAP() {
+            gsap.registerPlugin(ScrollTrigger);
+
+            // Hero entrance timeline
+            const heroTL = gsap.timeline({ delay: 0.3 });
+            const heroEls = document.querySelectorAll('.hero .gs-hidden');
+            heroEls.forEach((el, i) => {
+                heroTL.to(el, {
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.9,
+                    ease: 'power3.out'
+                }, i * 0.15);
+            });
+
+            // Section headers
+            gsap.utils.toArray('.section-header.gs-hidden').forEach(el => {
+                gsap.to(el, {
+                    scrollTrigger: {
+                        trigger: el,
+                        start: 'top 85%',
+                        toggleActions: 'play none none none'
+                    },
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.8,
+                    ease: 'power3.out'
+                });
+            });
+
+            // Feature cards — stagger
+            gsap.utils.toArray('.feature-card.gs-hidden').forEach((el, i) => {
+                gsap.to(el, {
+                    scrollTrigger: {
+                        trigger: el,
+                        start: 'top 88%',
+                        toggleActions: 'play none none none'
+                    },
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.7,
+                    delay: (el.dataset.delay || 0) * 1,
+                    ease: 'power3.out'
+                });
+            });
+
+            // Steps — stagger from left/right
+            gsap.utils.toArray('.step.gs-hidden').forEach((el, i) => {
+                gsap.to(el, {
+                    scrollTrigger: {
+                        trigger: el,
+                        start: 'top 88%',
+                        toggleActions: 'play none none none'
+                    },
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.7,
+                    delay: i * 0.12,
+                    ease: 'power3.out'
+                });
+            });
+
+            // Command cards
+            gsap.utils.toArray('.command.gs-hidden').forEach((el, i) => {
+                gsap.to(el, {
+                    scrollTrigger: {
+                        trigger: el,
+                        start: 'top 88%',
+                        toggleActions: 'play none none none'
+                    },
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.6,
+                    delay: i * 0.08,
+                    ease: 'power2.out'
+                });
+            });
+
+            // Parallax effect on hero glow
+            gsap.to('.hero::before', {
+                scrollTrigger: {
+                    trigger: '.hero',
+                    start: 'top top',
+                    end: 'bottom top',
+                    scrub: 1
+                },
+                y: 200,
+                opacity: 0
+            });
+        }
+
+        // ─── Mount React App ───
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(e(App));
     </script>
 </body>
 
